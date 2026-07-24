@@ -10,7 +10,11 @@ import {
 } from "react";
 import { useSearchParams } from "next/navigation";
 
-import { useRealtimeSession, type TranscriptLine } from "./useRealtimeSession";
+import {
+  useRealtimeSession,
+  type ProfessorSearchState,
+  type TranscriptLine,
+} from "./useRealtimeSession";
 import { useWebcamStream } from "./useWebcamStream";
 import { useCvSignals } from "./useCvSignals";
 import {
@@ -34,6 +38,7 @@ import { SessionControls } from "./SessionControls";
 import { WebcamPreview } from "./WebcamPreview";
 import { DemoPanel } from "./DemoPanel";
 import { ProfessorSearchPanel } from "./ProfessorSearchPanel";
+import { SessionSummaryPanel } from "./SessionSummaryPanel";
 
 function newSessionId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -44,6 +49,13 @@ function newSessionId(): string {
 
 const DEPARTURE_RELOAD_DELAY_MS = 5000;
 
+interface SummarySnapshot {
+  history: TranscriptLine[];
+  userText: string;
+  assistantText: string;
+  professorSearch: ProfessorSearchState | null;
+}
+
 /* ── Production kiosk ─────────────────────────────────────────────────────── */
 
 function ProductionKiosk({ avatarMode }: { avatarMode: AvatarMode }) {
@@ -51,7 +63,11 @@ function ProductionKiosk({ avatarMode }: { avatarMode: AvatarMode }) {
   const webcam = useWebcamStream();
   const cv = useCvSignals();
   const [started, setStarted] = useState(false);
+  const [debugMode, setDebugMode] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [summarySnapshot, setSummarySnapshot] = useState<SummarySnapshot | null>(null);
   const sessionIdRef = useRef("");
+  const startInFlightRef = useRef(false);
   const hasSeenFaceRef = useRef(false);
   const reloadStartedRef = useRef(false);
   const departureTimerRef = useRef<number | null>(null);
@@ -60,24 +76,103 @@ function ProductionKiosk({ avatarMode }: { avatarMode: AvatarMode }) {
   const stopWebcam = webcam.stop;
   const stopCv = cv.stop;
   const { presenceState, sessionState } = cv;
+  const sessionStatus = session.status;
+  const setPushToTalkActive = session.setPushToTalkActive;
 
   const thinking = useThinkingHint(session.userText, session.assistantSpeaking);
 
+  const captureSummary = useCallback((): SummarySnapshot => ({
+    history: [...session.history],
+    userText: session.userText,
+    assistantText: session.assistantText,
+    professorSearch: session.professorSearch,
+  }), [
+    session.assistantText,
+    session.history,
+    session.professorSearch,
+    session.userText,
+  ]);
+
+  const showSummary = useCallback(() => {
+    setSummarySnapshot(captureSummary());
+    setSummaryOpen(true);
+  }, [captureSummary]);
+
+  const closeSummary = useCallback(() => setSummaryOpen(false), []);
+
   const start = useCallback(async () => {
-    const id = newSessionId();
-    sessionIdRef.current = id;
-    setStarted(true);
-    webcam.start(id);
-    cv.start(id);
-    await session.connect(id);
+    if (startInFlightRef.current) return;
+    startInFlightRef.current = true;
+    try {
+      const id = newSessionId();
+      sessionIdRef.current = id;
+      setSummaryOpen(false);
+      setSummarySnapshot(null);
+      setStarted(true);
+      webcam.start(id);
+      cv.start(id);
+      await session.connect(id);
+    } catch {
+      return;
+    } finally {
+      startInFlightRef.current = false;
+    }
   }, [session, webcam, cv]);
 
   const stop = useCallback(() => {
+    const snapshot = captureSummary();
+    const hasSummary =
+      snapshot.history.length > 0 ||
+      Boolean(snapshot.userText.trim()) ||
+      Boolean(snapshot.assistantText.trim());
     session.disconnect();
     webcam.stop();
     cv.stop();
     setStarted(false);
-  }, [session, webcam, cv]);
+    setSummarySnapshot(hasSummary ? snapshot : null);
+    setSummaryOpen(hasSummary);
+  }, [captureSummary, session, webcam, cv]);
+
+  useEffect(() => {
+    const isEditableTarget = (target: EventTarget | null) => {
+      const element = target as HTMLElement | null;
+      return Boolean(
+        element?.isContentEditable ||
+        element?.tagName === "INPUT" ||
+        element?.tagName === "TEXTAREA" ||
+        element?.tagName === "SELECT"
+      );
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (isEditableTarget(event.target) || summaryOpen) return;
+      if (event.code === "KeyD" && !event.repeat) {
+        event.preventDefault();
+        setDebugMode((enabled) => !enabled);
+        return;
+      }
+      if (
+        event.code === "KeyV" &&
+        !event.repeat &&
+        started &&
+        sessionStatus === "active"
+      ) {
+        event.preventDefault();
+        setPushToTalkActive(true);
+      }
+    };
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (event.code !== "KeyV") return;
+      event.preventDefault();
+      setPushToTalkActive(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      setPushToTalkActive(false);
+    };
+  }, [setPushToTalkActive, sessionStatus, started, summaryOpen]);
 
   useEffect(() => {
     sessionStateRef.current = sessionState;
@@ -152,6 +247,8 @@ function ProductionKiosk({ avatarMode }: { avatarMode: AvatarMode }) {
         status={session.status}
         isFocused={cv.isFocused}
         started={started}
+        speechDetected={session.speechDetected}
+        debugMode={debugMode}
       />
       <FaceStage
         faceState={faceState}
@@ -165,17 +262,36 @@ function ProductionKiosk({ avatarMode }: { avatarMode: AvatarMode }) {
         assistantText={session.assistantText}
         userText={session.userText}
         history={session.history}
+        showUserTranscript={debugMode}
       />
       <ProfessorSearchPanel search={session.professorSearch} />
-      {!started && <AttractOverlay onStart={start} />}
+      {!started && (
+        <AttractOverlay onStart={start} />
+      )}
       <SessionControls
         started={started}
         status={session.status}
         errorMessage={session.errorMessage}
+        microphoneLevel={session.microphoneLevel}
+        speechDetected={session.speechDetected}
+        pushToTalkActive={session.pushToTalkActive}
+        debugMode={debugMode}
+        busy={session.status === "connecting"}
         onStop={stop}
         onRetry={start}
+        onPushToTalk={session.setPushToTalkActive}
+        onShowSummary={showSummary}
       />
       <WebcamPreview videoRef={webcam.videoRef} active={started} />
+      <SessionSummaryPanel
+        open={summaryOpen}
+        history={summarySnapshot?.history ?? []}
+        userText={summarySnapshot?.userText ?? ""}
+        assistantText={summarySnapshot?.assistantText ?? ""}
+        professorSearch={summarySnapshot?.professorSearch ?? null}
+        showUserTranscript={debugMode}
+        onClose={closeSummary}
+      />
     </KioskShell>
   );
 }
@@ -234,6 +350,8 @@ function DemoKiosk({
         status={faceState === "attract" ? "idle" : "active"}
         isFocused={focused}
         started={faceState !== "attract"}
+        speechDetected={ampKind === "speech"}
+        debugMode={false}
       />
       <FaceStage
         faceState={shownState}
@@ -246,6 +364,7 @@ function DemoKiosk({
         assistantText={fakeSubtitles ? streamedText : ""}
         userText=""
         history={fakeSubtitles || faceState === "attract" ? [] : DEMO_LINES}
+        showUserTranscript
       />
       {faceState === "attract" && (
         <AttractOverlay onStart={() => setFaceState("listening")} />
@@ -254,8 +373,15 @@ function DemoKiosk({
         started={faceState !== "attract"}
         status="active"
         errorMessage={null}
+        microphoneLevel={0.42}
+        speechDetected={ampKind === "speech"}
+        pushToTalkActive={false}
+        debugMode={false}
+        busy={false}
         onStop={() => setFaceState("attract")}
         onRetry={() => {}}
+        onPushToTalk={() => {}}
+        onShowSummary={() => {}}
       />
       <DemoPanel
         faceState={faceState}

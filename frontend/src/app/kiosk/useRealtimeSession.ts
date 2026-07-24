@@ -43,8 +43,12 @@ export interface RealtimeSession {
    *  "neutral" when emotion classification is disabled or on turn reset. */
   emotion: string;
   professorSearch: ProfessorSearchState | null;
+  microphoneLevel: number;
+  speechDetected: boolean;
+  pushToTalkActive: boolean;
   /** AnalyserNode on the assistant audio output — drives lip-sync. */
   outputAnalyserRef: React.MutableRefObject<AnalyserNode | null>;
+  setPushToTalkActive: (active: boolean) => void;
   connect: (sessionId: string) => Promise<void>;
   disconnect: () => void;
 }
@@ -82,34 +86,53 @@ const OUTPUT_RATE = 24000;
 const SILERO_MODEL_URL = "/vad-assets/silero_vad_v5.onnx";
 const ORT_WASM_BASE_PATH = "/vad-assets/";
 
-// Silero detects any speech, including background conversations. Admission
-// therefore also requires near-field energy above both an absolute floor and
-// an adaptive ambient-noise floor for several consecutive frames.
-const VAD_POS_LISTEN = 0.65;
-const VAD_CONTINUE_LISTEN = 0.50;
-const VAD_CONFIRM_LISTEN = 3; // 96 ms
-const VAD_REDEEM_LISTEN = 16; // 512 ms, tolerates natural pauses
-const VAD_MIN_RMS_LISTEN = 0.0125; // about -38 dBFS
-const VAD_SNR_LISTEN = 3.16; // +10 dB over the ambient floor
+// Balanced profile: local VAD rejects ambient speech but must not erase soft,
+// short Turkish replies before Gemini gets a chance to understand them.
+const VAD_POS_LISTEN = 0.50;
+const VAD_CONTINUE_LISTEN = 0.35;
+const VAD_CONFIRM_LISTEN = 2; // 64 ms
+const VAD_REDEEM_LISTEN = 18; // 576 ms, tolerates natural pauses
+const VAD_MIN_RMS_LISTEN = 0.0075; // about -42.5 dBFS
+const VAD_SNR_LISTEN = 2.25; // about +7 dB over the ambient floor
 
 // Playback/barge-in is intentionally stricter to reject residual speaker echo.
-const VAD_POS_PLAY = 0.85;
-const VAD_CONTINUE_PLAY = 0.70;
-const VAD_CONFIRM_PLAY = 4; // 128 ms
-const VAD_REDEEM_PLAY = 10; // ~320 ms
-const VAD_MIN_RMS_PLAY = 0.025; // about -32 dBFS
-const VAD_SNR_PLAY = 5.62; // +15 dB over the ambient floor
-const VAD_ECHO_COUPLING = 0.25;
-const VAD_ECHO_MARGIN = 0.006;
+const VAD_POS_PLAY = 0.72;
+const VAD_CONTINUE_PLAY = 0.55;
+const VAD_CONFIRM_PLAY = 3; // 96 ms
+const VAD_REDEEM_PLAY = 12; // 384 ms
+const VAD_MIN_RMS_PLAY = 0.016; // about -36 dBFS
+const VAD_SNR_PLAY = 3.5; // about +11 dB over the ambient floor
+const VAD_ECHO_COUPLING = 0.18;
+const VAD_ECHO_MARGIN = 0.004;
 
-const VAD_PREROLL = 5; // 160 ms; enough to preserve leading consonants
-const VAD_INITIAL_NOISE_RMS = 0.004;
-const VAD_NOISE_PROB_MAX = 0.15;
+const VAD_PREROLL = 6; // 192 ms; preserve short replies and leading consonants
+const VAD_INITIAL_NOISE_RMS = 0.003;
+const VAD_MAX_NOISE_RMS = 0.012;
+const VAD_MAX_ECHO_RMS = 0.05;
+const VAD_NOISE_PROB_MAX = 0.20;
 const VAD_NOISE_RISE_ALPHA = 0.01;
 const VAD_NOISE_FALL_ALPHA = 0.05;
 
 // Keep stricter echo rejection briefly after browser playback actually drains.
 const PLAYBACK_TAIL_MS = 300;
+const MICROPHONE_METER_INTERVAL_MS = 80;
+
+function microphoneConstraints(): MediaStreamConstraints {
+  return {
+    audio: {
+      channelCount: 1,
+      echoCancellation: true,
+      noiseSuppression: true,
+      // Keep the existing kiosk tuning until it is recalibrated with AGC.
+      autoGainControl: false,
+    },
+    video: false,
+  };
+}
+
+function normalizeMicrophoneLevel(rms: number): number {
+  return Math.max(0, Math.min(1, rms / 0.08));
+}
 
 type VadGateState = "silent" | "speaking";
 
@@ -141,20 +164,27 @@ async function createSileroVad(ort: typeof import("onnxruntime-web")) {
   )!; // "stateN"
 
   const sr = new ort.Tensor("int64", [BigInt(16000)]);
-  let state = new ort.Tensor("float32", new Float32Array(2 * 1 * 128), [2, 1, 128]);
+  const newState = () =>
+    new ort.Tensor("float32", new Float32Array(2 * 1 * 128), [2, 1, 128]);
+  let state = newState();
 
-  return async function predict(audio: Float32Array): Promise<number> {
-    const input = new ort.Tensor("float32", audio, [1, audio.length]);
-    const out = await session.run({
-      [inputName]: input,
-      [stateName]: state,
-      [srName]: sr,
-    });
-    // Feed the new state back in for the next call. The state output is
-    // float32; cast past ORT's widened return type.
-    state = out[stateOutName] as typeof state;
-    const prob = (out[outputName].data as Float32Array)[0];
-    return typeof prob === "number" ? prob : 0;
+  return {
+    predict: async (audio: Float32Array): Promise<number> => {
+      const input = new ort.Tensor("float32", audio, [1, audio.length]);
+      const out = await session.run({
+        [inputName]: input,
+        [stateName]: state,
+        [srName]: sr,
+      });
+      // Feed the new state back in for the next call. The state output is
+      // float32; cast past ORT's widened return type.
+      state = out[stateOutName] as typeof state;
+      const prob = (out[outputName].data as Float32Array)[0];
+      return typeof prob === "number" ? prob : 0;
+    },
+    reset: () => {
+      state = newState();
+    },
   };
 }
 
@@ -169,6 +199,9 @@ export function useRealtimeSession(): RealtimeSession {
   const [emotion, setEmotion] = useState<string>("neutral");
   const [professorSearch, setProfessorSearch] =
     useState<ProfessorSearchState | null>(null);
+  const [microphoneLevel, setMicrophoneLevel] = useState(0);
+  const [speechDetected, setSpeechDetected] = useState(false);
+  const [pushToTalkActive, setPushToTalkActiveState] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
@@ -178,6 +211,8 @@ export function useRealtimeSession(): RealtimeSession {
   const playbackNodeRef = useRef<AudioWorkletNode | null>(null);
   const outputAnalyserRef = useRef<AnalyserNode | null>(null);
   const connectionAttemptRef = useRef(0);
+  const lastMeterUpdateRef = useRef(0);
+  const resetVadRef = useRef<(() => void) | null>(null);
 
   const userBufRef = useRef("");
   const assistantBufRef = useRef("");
@@ -192,6 +227,14 @@ export function useRealtimeSession(): RealtimeSession {
   const assistantPlaybackRef = useRef(false);
   const assistantPlaybackEndedAtRef = useRef(Number.NEGATIVE_INFINITY);
   const suppressAssistantAudioRef = useRef(false);
+  const pushToTalkRef = useRef(false);
+  const speechDetectedRef = useRef(false);
+
+  const setSpeechDetectedValue = useCallback((detected: boolean) => {
+    if (speechDetectedRef.current === detected) return;
+    speechDetectedRef.current = detected;
+    setSpeechDetected(detected);
+  }, []);
 
   const clearConversation = useCallback(() => {
     userBufRef.current = "";
@@ -228,8 +271,14 @@ export function useRealtimeSession(): RealtimeSession {
     assistantPlaybackRef.current = false;
     assistantPlaybackEndedAtRef.current = Number.NEGATIVE_INFINITY;
     suppressAssistantAudioRef.current = false;
+    pushToTalkRef.current = false;
     micTimeRef.current = 0;
-  }, []);
+    lastMeterUpdateRef.current = 0;
+    resetVadRef.current = null;
+    setMicrophoneLevel(0);
+    setPushToTalkActiveState(false);
+    setSpeechDetectedValue(false);
+  }, [setSpeechDetectedValue]);
 
   const disconnect = useCallback(() => {
     teardown();
@@ -240,6 +289,26 @@ export function useRealtimeSession(): RealtimeSession {
     setEmotion("neutral");
     setProfessorSearch(null);
   }, [clearConversation, teardown]);
+
+  const setPushToTalkActive = useCallback((active: boolean) => {
+    pushToTalkRef.current = active;
+    setPushToTalkActiveState(active);
+    if (active) {
+      playbackNodeRef.current?.port.postMessage({ type: "reset" });
+      assistantPlaybackRef.current = false;
+      assistantPlaybackEndedAtRef.current = performance.now();
+      suppressAssistantAudioRef.current = true;
+      setAssistantSpeaking(false);
+      return;
+    }
+
+    gateStateRef.current = "silent";
+    onsetFramesRef.current = 0;
+    redeemRef.current = 0;
+    prerollRef.current = [];
+    resetVadRef.current?.();
+    setSpeechDetectedValue(false);
+  }, [setSpeechDetectedValue]);
 
   const handleControl = useCallback((msg: Record<string, unknown>) => {
     switch (msg.type) {
@@ -262,6 +331,7 @@ export function useRealtimeSession(): RealtimeSession {
         // Barge-in: flush the playback buffer and drop the partial reply.
         playbackNodeRef.current?.port.postMessage({ type: "reset" });
         assistantBufRef.current = "";
+        setAssistantText("");
         assistantPlaybackRef.current = false;
         assistantPlaybackEndedAtRef.current = performance.now();
         setAssistantSpeaking(false);
@@ -269,7 +339,7 @@ export function useRealtimeSession(): RealtimeSession {
         break;
       case "assistant_audio_start":
         // Ordered immediately before the first PCM frame of a new model turn.
-        suppressAssistantAudioRef.current = false;
+        if (!pushToTalkRef.current) suppressAssistantAudioRef.current = false;
         break;
       case "seekAttention":
         setSeekAttentionNonce((n) => n + 1);
@@ -352,22 +422,23 @@ export function useRealtimeSession(): RealtimeSession {
         // signal on this device. The only change vs the original: we size the
         // worklet frames to 512 samples (Silero v5's fixed window) so we can
         // run inference per frame.
-        const micStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            channelCount: 1,
-            echoCancellation: true,
-            noiseSuppression: true,
-            // AGC can lift distant conversations toward foreground level.
-            // A fixed kiosk microphone works better with the explicit RMS gate.
-            autoGainControl: false,
-          },
-          video: false,
-        });
+        const micStream = await navigator.mediaDevices.getUserMedia(
+          microphoneConstraints()
+        );
         if (!isCurrentAttempt()) {
           micStream.getTracks().forEach((track) => track.stop());
           return;
         }
         micStreamRef.current = micStream;
+        const microphoneTrack = micStream.getAudioTracks()[0];
+        if (microphoneTrack) {
+          microphoneTrack.onended = () => {
+            if (!isCurrentAttempt()) return;
+            setErrorMessage("mikrofon bağlantısı kesildi");
+            setStatus("error");
+            teardown();
+          };
+        }
 
         const inputCtx = new AudioContext();
         inputCtxRef.current = inputCtx;
@@ -424,6 +495,7 @@ export function useRealtimeSession(): RealtimeSession {
             onsetFramesRef.current = 0;
             redeemRef.current = 0;
             prerollRef.current = [];
+            setSpeechDetectedValue(false);
             setAssistantSpeaking(true);
           } else if (type === "playback-drained" || type === "playback-reset") {
             assistantPlaybackRef.current = false;
@@ -438,7 +510,9 @@ export function useRealtimeSession(): RealtimeSession {
         // instead of accepting user speech during a capture blackout.
         const ort = await import("onnxruntime-web");
         console.log("[vad] loading Silero v5 ONNX session...");
-        const predict = await createSileroVad(ort);
+        const vad = await createSileroVad(ort);
+        const predict = vad.predict;
+        resetVadRef.current = vad.reset;
         if (!isCurrentAttempt()) {
           micStream.getTracks().forEach((track) => track.stop());
           try { captureNode.disconnect(); } catch {}
@@ -546,10 +620,24 @@ export function useRealtimeSession(): RealtimeSession {
         // of being forwarded as if it were the user talking.
         const SILENT_FRAME = new Int16Array(VAD_FRAME_SAMPLES); // all zeros
 
-        const processCapturedFrame = async (data: ArrayBuffer) => {
+        const processCapturedFrame = async (data: ArrayBuffer, forcePushToTalk: boolean) => {
           if (wsRef.current !== ws) return;
           const pcm = new Int16Array(data);
           const { audio, rms } = decodeFrame(pcm);
+
+          const meterNow = performance.now();
+          if (meterNow - lastMeterUpdateRef.current >= MICROPHONE_METER_INTERVAL_MS) {
+            setMicrophoneLevel(normalizeMicrophoneLevel(rms));
+            lastMeterUpdateRef.current = meterNow;
+          }
+
+          // Hold-to-talk is the reliability escape hatch: it bypasses local
+          // VAD admission and sends the selected microphone directly to Gemini.
+          if (forcePushToTalk) {
+            setSpeechDetectedValue(rms >= 0.005);
+            if (sendFrame(pcm)) sentSpeechFrames++;
+            return;
+          }
 
           // Run Silero inference. Stateful (RNN); `predict` keeps the state.
           let prob = 0;
@@ -592,14 +680,14 @@ export function useRealtimeSession(): RealtimeSession {
               rms > floor ? VAD_NOISE_RISE_ALPHA : VAD_NOISE_FALL_ALPHA;
             noiseRmsRef.current = Math.max(
               0.0005,
-              Math.min(0.02, floor + (rms - floor) * alpha),
+              Math.min(VAD_MAX_NOISE_RMS, floor + (rms - floor) * alpha),
             );
           }
 
           const farRms = readFarRms();
           const echoFloor = playing
             ? Math.min(
-                0.08,
+                VAD_MAX_ECHO_RMS,
                 farRms * VAD_ECHO_COUPLING + VAD_ECHO_MARGIN,
               )
             : 0;
@@ -636,6 +724,7 @@ export function useRealtimeSession(): RealtimeSession {
 
             if (onsetFramesRef.current >= confirmFrames) {
               gateStateRef.current = "speaking";
+              setSpeechDetectedValue(true);
               onsetFramesRef.current = 0;
               redeemRef.current = 0;
               const ring = playing
@@ -667,6 +756,7 @@ export function useRealtimeSession(): RealtimeSession {
               redeemRef.current += 1;
               if (redeemRef.current >= redeemCap) {
                 gateStateRef.current = "silent";
+                setSpeechDetectedValue(false);
                 onsetFramesRef.current = 0;
                 redeemRef.current = 0;
                 prerollRef.current = [];
@@ -705,10 +795,17 @@ export function useRealtimeSession(): RealtimeSession {
         // Silero is recurrent: process frames strictly in capture order so two
         // async inferences can never read/update the same RNN state concurrently.
         let vadFrameChain = Promise.resolve();
+        let previousCapturedPushToTalk = false;
         captureNode.port.onmessage = (e: MessageEvent) => {
           const data = e.data as ArrayBuffer;
+          const forcePushToTalk = pushToTalkRef.current;
+          const resetVadBefore = previousCapturedPushToTalk && !forcePushToTalk;
+          previousCapturedPushToTalk = forcePushToTalk;
           vadFrameChain = vadFrameChain
-            .then(() => processCapturedFrame(data))
+            .then(() => {
+              if (resetVadBefore) vad.reset();
+              return processCapturedFrame(data, forcePushToTalk);
+            })
             .catch((err) => {
               console.error("[vad] frame processing failed", err);
               sendFrame(SILENT_FRAME);
@@ -721,7 +818,13 @@ export function useRealtimeSession(): RealtimeSession {
         teardown();
       }
     },
-    [status, clearConversation, handleControl, teardown]
+    [
+      status,
+      clearConversation,
+      handleControl,
+      setSpeechDetectedValue,
+      teardown,
+    ]
   );
 
   useEffect(() => () => teardown(), [teardown]);
@@ -736,7 +839,11 @@ export function useRealtimeSession(): RealtimeSession {
     seekAttentionNonce,
     emotion,
     professorSearch,
+    microphoneLevel,
+    speechDetected,
+    pushToTalkActive,
     outputAnalyserRef,
+    setPushToTalkActive,
     connect,
     disconnect,
   };

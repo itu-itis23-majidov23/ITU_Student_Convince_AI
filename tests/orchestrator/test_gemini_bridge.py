@@ -32,7 +32,7 @@ def test_build_config_assembles():
     assert aad.disabled is False
     assert (
         aad.start_of_speech_sensitivity
-        == types.StartSensitivity.START_SENSITIVITY_LOW
+        == types.StartSensitivity.START_SENSITIVITY_HIGH
     )
     assert (
         aad.end_of_speech_sensitivity

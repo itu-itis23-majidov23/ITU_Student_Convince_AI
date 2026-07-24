@@ -96,11 +96,11 @@ class GeminiLiveBridge:
             realtime_input_config=types.RealtimeInputConfig(
                 automatic_activity_detection=types.AutomaticActivityDetection(
                     disabled=False,
-                    # Local VAD is the first line of defense. Keep Gemini's
-                    # detector conservative as well so brief leaked background
-                    # speech does not start a turn or interrupt model audio.
+                    # Local Silero/RMS gating already rejects ambient audio.
+                    # Keep Gemini sensitive enough to retain short Turkish
+                    # replies instead of applying a second conservative gate.
                     start_of_speech_sensitivity=(
-                        types.StartSensitivity.START_SENSITIVITY_LOW
+                        types.StartSensitivity.START_SENSITIVITY_HIGH
                     ),
                     end_of_speech_sensitivity=(
                         types.EndSensitivity.END_SENSITIVITY_HIGH

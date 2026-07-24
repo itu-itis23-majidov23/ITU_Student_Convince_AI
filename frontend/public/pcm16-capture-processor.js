@@ -45,10 +45,13 @@ class Pcm16CaptureProcessor extends AudioWorkletProcessor {
       pos += ratio;
     }
 
-    // Keep the tail from the last integer index we still need for interpolation.
-    const keepFrom = Math.floor(pos);
-    this._tail = buf.subarray(Math.min(keepFrom, buf.length));
-    this._pos = pos - keepFrom;
+    // Preserve overshoot across AudioWorklet blocks. At 48 kHz -> 16 kHz the
+    // next desired position can be one sample into the next 128-sample block;
+    // subtracting floor(pos) here used to reset that phase and produce 16.125
+    // kHz audio while declaring it as 16 kHz.
+    const consumed = Math.min(Math.floor(pos), buf.length);
+    this._tail = buf.subarray(consumed);
+    this._pos = pos - consumed;
 
     // Emit complete ~20ms frames.
     while (this._out.length >= this.frameSamples) {

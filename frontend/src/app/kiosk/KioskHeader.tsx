@@ -7,6 +7,8 @@ interface KioskHeaderProps {
   status: SessionStatus;
   isFocused: boolean;
   started: boolean;
+  speechDetected: boolean;
+  debugMode: boolean;
 }
 
 const STATUS_TR: Record<SessionStatus, { label: string; color: string }> = {
@@ -35,6 +37,8 @@ export const KioskHeader = memo(function KioskHeader({
   status,
   isFocused,
   started,
+  speechDetected,
+  debugMode,
 }: KioskHeaderProps) {
   const s = STATUS_TR[status];
   return (
@@ -53,6 +57,20 @@ export const KioskHeader = memo(function KioskHeader({
         </span>
       </div>
       <div className="flex items-center gap-2">
+        {debugMode && (
+          <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-xs font-[800] tracking-wide text-[var(--k-amber-soft)]">
+            DEBUG · D
+          </span>
+        )}
+        {started && status === "active" && speechDetected && (
+          <span
+            aria-live="assertive"
+            className="flex items-center gap-2 rounded-full bg-emerald-400/20 px-4 py-2 text-sm font-[850] text-emerald-200 ring-2 ring-emerald-300/60"
+          >
+            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-300" />
+            SESİNİ DUYUYORUM
+          </span>
+        )}
         {started && status === "active" && (
           <Pill color={isFocused ? "var(--k-ok)" : "var(--k-coral)"}>
             {isFocused ? "seninle" : "buradayım 👋"}

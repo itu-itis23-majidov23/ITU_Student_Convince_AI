@@ -19,12 +19,12 @@ export const WebcamPreview = memo(function WebcamPreview({
   const hidden = collapsed || !active;
 
   return (
-    <div className="absolute bottom-5 right-5 z-30 flex flex-col items-end gap-1">
+    <div className="absolute bottom-28 right-2 z-30 flex flex-col items-end gap-1 sm:bottom-5 sm:right-5">
       <video
         ref={videoRef}
         muted
         playsInline
-        className={`w-36 rounded-xl border transition-opacity duration-300 ${
+        className={`w-24 rounded-xl border transition-opacity duration-300 sm:w-36 ${
           hidden ? "pointer-events-none opacity-0" : "opacity-80"
         }`}
         style={{ borderColor: "rgba(148,163,189,0.3)", transform: "scaleX(-1)" }}
