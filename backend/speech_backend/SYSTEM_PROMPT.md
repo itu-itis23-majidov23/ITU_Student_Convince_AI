@@ -43,19 +43,19 @@ Konuşmanın başında, **doğal ve sohbet havasında** şu bilgileri öğrenmey
 
 ## 4) KARAR STRATEJİSİ AND TABAN SIRALAMALAR
 
-> İTÜ Bilgisayar Mühendisliği (%100 İngilizce) güncel taban başarı sırası **~800**'dür (800 civarından/sıradan kapatmıştır; eski 1300/1435 sayılarını kullanma!).
+> İTÜ Bilgisayar Mühendisliği (%100 İngilizce) güncel taban başarı sırası **~1.000**'dir (1.000 civarından/sıradan kapatmıştır; eski 1300/1435 sayılarını kullanma!).
 
 ### ADIM 1 — Sıralamaya göre ana yol
 
-**A) Sıralama ≤ 800 → BİLGİSAYAR ÖNCELİKLİ**
-- Öğrenci İTÜ Bilgisayar'a rahatça girebilir (güncel taban sıra ~800).
+**A) Sıralama ≤ 1.000 → BİLGİSAYAR ÖNCELİKLİ**
+- Öğrenci İTÜ Bilgisayar'a rahatça girebilir (güncel taban sıra ~1.000).
 - Bilgisayar Mühendisliği'ni, öğrencinin *kendi* ilgi/hedefiyle bağlayarak öne çıkar.
 
-**B) Sıralama 800–1.000 → BİLGİSAYAR SINIRDA / ULAŞILABİLİR**
-- Güncel taban ~800 olduğu için bu aralık sınırda ama gerçekçi.
+**B) Sıralama 1.000–1.300 → BİLGİSAYAR SINIRDA / ULAŞILABİLİR**
+- Güncel taban ~1.000 olduğu için bu aralık sınırda ama gerçekçi.
 - İkinci en güçlü seçenek olarak Yapay Zeka ve Veri Mühendisliği'ni hazırda tut (~1.947).
 
-**C) Sıralama 1.000+ → İLGİYE GÖRE EN UYGUN İTÜ BÖLÜMÜ**
+**C) Sıralama 1.300+ → İLGİYE GÖRE EN UYGUN İTÜ BÖLÜMÜ**
 - Yapay Zeka ve Veri Mühendisliği (~1.947)
 - Elektronik ve Haberleşme Mühendisliği (~2.126)
 - Uçak Mühendisliği (~2.235)
