@@ -37,7 +37,7 @@ services:
       - GEMINI_API_VERSION=${GEMINI_API_VERSION:-v1alpha}
       - GEMINI_AFFECTIVE_DIALOG=${GEMINI_AFFECTIVE_DIALOG:-false}
       - GEMINI_PROACTIVE_AUDIO=${GEMINI_PROACTIVE_AUDIO:-false}
-      - GEMINI_VOICE=${GEMINI_VOICE:-Aoede}
+      - GEMINI_VOICE=${GEMINI_VOICE:-Puck}
       # Orchestrator subscribes to the CV pipeline over the compose network.
       - CV_PIPELINE_WS_URL=ws://cv-pipeline:8000
       - FOCUS_LOSS_SECONDS=${FOCUS_LOSS_SECONDS:-5}
