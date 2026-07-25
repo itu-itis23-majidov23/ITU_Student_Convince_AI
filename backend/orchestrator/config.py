@@ -47,7 +47,7 @@ GEMINI_LIVE_MODEL = _str("GEMINI_LIVE_MODEL", "gemini-3.1-flash-live-preview")
 GEMINI_API_VERSION = _str("GEMINI_API_VERSION", "v1alpha")
 # Prebuilt voice name. Turkish availability is verified at startup (Phase 1);
 # override via env if the chosen voice is unavailable.
-GEMINI_VOICE = _str("GEMINI_VOICE", "Puck")
+GEMINI_VOICE = _str("GEMINI_VOICE", "Aoede")
 GEMINI_LANGUAGE = _str("GEMINI_LANGUAGE", "tr-TR")
 ENABLE_AFFECTIVE_DIALOG = _bool("GEMINI_AFFECTIVE_DIALOG", False)
 ENABLE_PROACTIVE_AUDIO = _bool("GEMINI_PROACTIVE_AUDIO", False)

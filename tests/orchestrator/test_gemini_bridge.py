@@ -11,7 +11,7 @@ def _bridge():
     return glb.GeminiLiveBridge(
         api_key="dummy",
         model="gemini-3.1-flash-live-preview",
-        voice="Puck",
+        voice="Aoede",
         instructions="Türkçe konuş.",
     )
 
@@ -32,7 +32,7 @@ def test_build_config_assembles():
     assert aad.disabled is False
     assert (
         aad.start_of_speech_sensitivity
-        == types.StartSensitivity.START_SENSITIVITY_HIGH
+        == types.StartSensitivity.START_SENSITIVITY_LOW
     )
     assert (
         aad.end_of_speech_sensitivity
@@ -40,7 +40,7 @@ def test_build_config_assembles():
     )
     assert aad.prefix_padding_ms == 160
     assert aad.silence_duration_ms == 500
-    assert cfg.speech_config.voice_config.prebuilt_voice_config.voice_name == "Puck"
+    assert cfg.speech_config.voice_config.prebuilt_voice_config.voice_name == "Aoede"
     declaration = cfg.tools[0].function_declarations[0]
     assert declaration.name == "search_itu_professors"
     assert declaration.behavior == types.Behavior.NON_BLOCKING

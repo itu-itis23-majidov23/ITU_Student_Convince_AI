@@ -382,7 +382,7 @@ Docker Compose auto-loads `.env` from the repo root. When using venvs, `export` 
 |----------|---------|---------|
 | `GOOGLE_API_KEY` | *(required)* | Gemini Live API key |
 | `GEMINI_LIVE_MODEL` | `gemini-3.1-flash-live-preview` | Live model |
-| `GEMINI_VOICE` | `Puck` | Prebuilt voice (male) |
+| `GEMINI_VOICE` | `Aoede` | Prebuilt voice |
 | `ENABLE_EMOTION` | `false` | Avatar emotion classification (adds ~200 MB) |
 | `NEXT_PUBLIC_AVATAR` | `live2d` | Default avatar renderer (`live2d` or `svg`) |
 | `ORCH_TOKEN` | *(empty)* | Optional bearer token to protect the orchestrator WS |
