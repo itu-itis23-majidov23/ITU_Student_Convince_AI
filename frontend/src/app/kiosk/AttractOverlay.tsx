@@ -3,7 +3,7 @@
 import { memo, useEffect, useState } from "react";
 
 const TAGLINES = [
-  "Merhaba! Ben Elif — İTÜ tercih danışmanın.",
+  "Merhaba! Ben Petek, İTÜ'nün arısı — tercih danışmanın.",
   "YKS sıralamana en uygun İTÜ bölümünü birlikte bulalım.",
   "Aklındaki soruları sesli sorabilirsin, seni dinliyorum.",
   "Bilgisayar Müh., Yapay Zekâ ve Veri Müh. ve dahası…",
