@@ -256,7 +256,7 @@ function ProductionKiosk({ avatarMode }: { avatarMode: AvatarMode }) {
         seekAttentionNonce={session.seekAttentionNonce}
         avatarMode={avatarMode}
         emotion={session.emotion}
-        facePosition={avatarMode === "live2d" ? cv.facePosition : null}
+        facePosition={avatarMode === "svg" ? null : cv.facePosition}
       />
       <SubtitlePanel
         assistantText={session.assistantText}
@@ -413,17 +413,17 @@ const FACE_STATES: FaceState[] = [
   "concerned",
 ];
 
+const AVATAR_MODES: AvatarMode[] = ["bee", "svg", "live2d"];
+
 function resolveAvatarMode(params: URLSearchParams): AvatarMode {
-  // Live2D is the DEFAULT avatar. The SVG "Elif" face is available as an
-  // explicit fallback via ?avatar=svg (e.g. for machines without WebGL).
-  const fromEnv =
-    typeof process !== "undefined" && process.env.NEXT_PUBLIC_AVATAR === "svg"
-      ? "svg"
-      : "live2d";
+  // The İTÜ bee mascot is the DEFAULT avatar. The SVG "Elif" face and the
+  // Live2D model remain available via ?avatar= or NEXT_PUBLIC_AVATAR.
   const q = params.get("avatar");
-  if (q === "svg") return "svg";
-  if (q === "live2d") return "live2d";
-  return fromEnv as AvatarMode;
+  if (q && (AVATAR_MODES as string[]).includes(q)) return q as AvatarMode;
+  const env =
+    typeof process !== "undefined" ? process.env.NEXT_PUBLIC_AVATAR : undefined;
+  if (env && (AVATAR_MODES as string[]).includes(env)) return env as AvatarMode;
+  return "bee";
 }
 
 function KioskRouter() {

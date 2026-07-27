@@ -52,7 +52,7 @@ export function DemoPanel(c: DemoControls) {
 
       <div className="flex flex-col gap-1">
         <p className="font-[600] text-[var(--k-ink-dim)]">Avatar</p>
-        {(["svg", "live2d"] as AvatarMode[]).map((m) => (
+        {(["bee", "svg", "live2d"] as AvatarMode[]).map((m) => (
           <label key={m} className="flex items-center gap-2 text-[var(--k-ink)]">
             <input
               type="radio"

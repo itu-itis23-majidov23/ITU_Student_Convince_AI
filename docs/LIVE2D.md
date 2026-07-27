@@ -1,27 +1,34 @@
-# Live2D Avatar
+# Avatars (bee mascot, Live2D, SVG)
 
-The kiosk ships with two interchangeable avatar renderers behind the same
+The kiosk ships with three interchangeable avatar renderers behind the same
 `FaceStage` component:
 
 | Mode  | Renderer                          | Lip-sync source          | Expressions          |
 |-------|-----------------------------------|--------------------------|----------------------|
-| `live2d` | `Live2DAvatar.tsx` — Cubism 4 model via `pixi-live2d-display` (**default**) | playback-audio RMS (`AmplitudeSource`) | FaceState **+** emotion overlay |
+| `bee` | `BeeFace.tsx` — hand-crafted İTÜ bee mascot SVG, animated by `useBeeRig.ts` (**default**) | playback-audio RMS (`AmplitudeSource`) | FaceState **+** emotion overlay |
+| `live2d` | `Live2DAvatar.tsx` — Cubism 4 model via `pixi-live2d-display` | playback-audio RMS (`AmplitudeSource`) | FaceState **+** emotion overlay |
 | `svg` | `AdvisorFace.tsx` — hand-crafted "Elif" SVG portrait (fallback) | same `AmplitudeSource` | FaceState only |
 
-Both renderers consume the **same** `AmplitudeSource` (the `AnalyserNode` RMS
+All renderers consume the **same** `AmplitudeSource` (the `AnalyserNode` RMS
 of the assistant playback audio), so lip-sync stays identical and in sync with
 Gemini Live audio regardless of which face is shown.
 
+The bee is İTÜ's symbol, drawn in the kiosk's own amber/navy palette. It needs
+no WebGL, no external assets, and no license review: antennae play the brows'
+role (perk up / droop), wing-flap speed tracks state + speech energy, the whole
+bee hovers over a soft ground shadow, and it reuses the Live2D emotion delta
+table (`live2dExpressions.ts`) plus CV face tracking for gaze/head turn.
+
 ## Selecting the avatar
 
-- **Default**: bare `/kiosk` uses Live2D.
-- Query param override: `/kiosk?avatar=svg` (force the SVG fallback) or
-  `/kiosk?avatar=live2d` (force Live2D).
-- Build-time default: set `NEXT_PUBLIC_AVATAR=svg` on the frontend if your
-  deployment needs the SVG face as the default (e.g. machines without WebGL).
+- **Default**: bare `/kiosk` uses the bee mascot.
+- Query param override: `/kiosk?avatar=bee`, `/kiosk?avatar=svg`, or
+  `/kiosk?avatar=live2d`.
+- Build-time default: set `NEXT_PUBLIC_AVATAR=bee|svg|live2d` on the frontend
+  to change the default for a deployment.
 - Demo mode (no backend): `/kiosk?demo=1` — the `DemoPanel` also
   has an Avatar radio to switch live, plus an emotion dropdown to drive the
-  Live2D expression map without a server.
+  bee/Live2D expression map without a server.
 
 ## Emotion channel (optional, off by default)
 

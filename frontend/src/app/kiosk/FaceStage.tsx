@@ -3,6 +3,7 @@
 import { memo } from "react";
 import dynamic from "next/dynamic";
 import { AdvisorFace } from "./AdvisorFace";
+import { BeeFace } from "./BeeFace";
 import type { FaceState } from "./faceState";
 import type { AmplitudeSource } from "./amplitude";
 import type { FacePosition } from "./useCvSignals";
@@ -17,15 +18,15 @@ const Live2DAvatar = dynamic(
   }
 );
 
-export type AvatarMode = "svg" | "live2d";
+export type AvatarMode = "bee" | "svg" | "live2d";
 
 interface FaceStageProps {
   faceState: FaceState;
   amplitude: AmplitudeSource;
   seekAttentionNonce: number;
-  /** Avatar renderer: hand-crafted SVG (default) or Live2D model. */
+  /** Avatar renderer: İTÜ bee mascot (default), hand-crafted SVG, or Live2D. */
   avatarMode?: AvatarMode;
-  /** Latest emotion label (go_emotions) — drives Live2D expressions. */
+  /** Latest emotion label (go_emotions) — drives bee/Live2D expressions. */
   emotion?: string;
   facePosition?: FacePosition | null;
 }
@@ -80,6 +81,15 @@ export const FaceStage = memo(function FaceStage({
         )}
         {avatarMode === "live2d" ? (
           <Live2DAvatar
+            className="relative h-full w-full"
+            state={faceState}
+            amplitude={amplitude}
+            seekAttentionNonce={seekAttentionNonce}
+            emotion={emotion}
+            facePosition={facePosition}
+          />
+        ) : avatarMode === "bee" ? (
+          <BeeFace
             className="relative h-full w-full"
             state={faceState}
             amplitude={amplitude}
