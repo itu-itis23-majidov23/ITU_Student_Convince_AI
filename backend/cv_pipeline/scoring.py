@@ -72,10 +72,9 @@ def _emotion_confidence(emotion_scores: dict) -> float:
 def _update_focus(session: SessionData, raw: RawSignals, now: float) -> None:
     """Odaklanma, her karede guncellenir (T-focus): dikkat dagilinca aninda
     0'a sifirlanir, kesintisiz surdukce focus_time artar."""
-    focused = (
-        bool(raw.face_present)
-        and (raw.eye_contact or 0.0) >= config.FOCUS_EYE_CONTACT_THRESHOLD
-    )
+    focused = bool(raw.face_present)
+    if focused and config.FOCUS_REQUIRE_EYE_CONTACT:
+        focused = (raw.eye_contact or 0.0) >= config.FOCUS_EYE_CONTACT_THRESHOLD
     if focused:
         if session.focus_streak_started_at is None:
             session.focus_streak_started_at = now

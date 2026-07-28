@@ -50,6 +50,11 @@ TRACKING_STALE_AFTER_SECONDS = _float("TRACKING_STALE_AFTER_SECONDS", 1.0)
 # /debug: SADECE gelistirme/test amacli, uretim kontratinin disinda kanal.
 DEBUG_EMIT_INTERVAL_SECONDS = _float("DEBUG_EMIT_INTERVAL_SECONDS", 0.3)
 FOCUS_EYE_CONTACT_THRESHOLD = _float("FOCUS_EYE_CONTACT_THRESHOLD", 0.5)
+# Odak icin goz temasi sarti simdilik kapali: yuz gorunuyorsa is_focused=true
+# sayilir. Bakis kosulunu geri acmak icin FOCUS_REQUIRE_EYE_CONTACT=true.
+FOCUS_REQUIRE_EYE_CONTACT = os.environ.get(
+    "FOCUS_REQUIRE_EYE_CONTACT", "false"
+).strip().lower() in {"1", "true", "yes", "on"}
 
 # --- Göz teması (gaze) ---------------------------------------------------------
 GAZE_YAW_GATE_DEG = _float("GAZE_YAW_GATE_DEG", 25.0)

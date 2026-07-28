@@ -32,6 +32,7 @@ def _make_injector():
 
 
 def test_focus_debounce_and_cooldown(monkeypatch):
+    monkeypatch.setattr(config, "REENGAGE_ENABLED", True)
     monkeypatch.setattr(config, "FOCUS_LOSS_SECONDS", 5.0)
     monkeypatch.setattr(config, "NUDGE_COOLDOWN_SECONDS", 20.0)
     clock = {"t": 100.0}

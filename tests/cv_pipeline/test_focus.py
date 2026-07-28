@@ -5,6 +5,7 @@ from backend.cv_pipeline.session import RawSignals, SessionData
 
 
 def test_focus_streak_accumulates_while_eye_contact_high(monkeypatch):
+    monkeypatch.setattr(config, "FOCUS_REQUIRE_EYE_CONTACT", True)
     monkeypatch.setattr(config, "FOCUS_EYE_CONTACT_THRESHOLD", 0.5)
     session = SessionData(session_id="focus-accum")
 
@@ -18,6 +19,7 @@ def test_focus_streak_accumulates_while_eye_contact_high(monkeypatch):
 
 
 def test_focus_resets_immediately_when_attention_drops(monkeypatch):
+    monkeypatch.setattr(config, "FOCUS_REQUIRE_EYE_CONTACT", True)
     monkeypatch.setattr(config, "FOCUS_EYE_CONTACT_THRESHOLD", 0.5)
     session = SessionData(session_id="focus-reset")
 
@@ -27,6 +29,17 @@ def test_focus_resets_immediately_when_attention_drops(monkeypatch):
     update_session(session, RawSignals(face_present=True, eye_contact=0.1, lean=0.0))
     assert session.is_focused is False
     assert session.focus_time == 0.0
+
+
+def test_focus_ignores_eye_contact_when_gaze_requirement_disabled(monkeypatch):
+    monkeypatch.setattr(config, "FOCUS_REQUIRE_EYE_CONTACT", False)
+    session = SessionData(session_id="focus-presence-only")
+
+    update_session(session, RawSignals(face_present=True, eye_contact=0.1, lean=0.0))
+    assert session.is_focused is True
+
+    update_session(session, RawSignals(face_present=True, eye_contact=None, lean=0.0))
+    assert session.is_focused is True
 
 
 def test_focus_resets_when_face_disappears(monkeypatch):

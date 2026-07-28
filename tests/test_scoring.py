@@ -16,6 +16,7 @@ from backend.cv_pipeline.scoring import (
     _spine_confidence,
     _emotion_confidence,
 )
+from backend.cv_pipeline import config
 from backend.cv_pipeline.session import SessionData, SessionState, RawSignals
 
 
@@ -54,7 +55,8 @@ class TestUpdateSession:
         # focus_time may be 0.0 within the same timestamp, so verify started
         assert s.focus_time >= 0.0
 
-    def test_focus_resets_when_eye_contact_drops(self):
+    def test_focus_resets_when_eye_contact_drops(self, monkeypatch):
+        monkeypatch.setattr(config, "FOCUS_REQUIRE_EYE_CONTACT", True)
         s = SessionData(session_id="test")
         s.state = SessionState.ACTIVE
         # First frame: focused
