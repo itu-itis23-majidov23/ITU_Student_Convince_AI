@@ -1198,14 +1198,14 @@ Sor:
 
 18.2 İTÜ Bilgisayar Mühendisliği Karar Ağacı
 
-Güncel Referans (2026 YKS): İTÜ Bilgisayar Mühendisliği (%100 İngilizce) taban başarı sıralaması yaklaşık **1.300** civarındadır (~1.300 sıradan kapatmıştır). Bu rakam her YKS döneminde değişebileceğinden düzenli olarak güncellenmelidir (bkz. Madde 29).
+Güncel Referans: İTÜ Bilgisayar Mühendisliği (%100 İngilizce) geçen yıl (2025 YKS) taban başarı sıralaması yaklaşık **988** ile kapatmıştır. Bu rakam her YKS döneminde değişebileceğinden düzenli olarak güncellenmelidir (bkz. Madde 29).
 
 ÖNEMLİ — Taban vs. Ortalama Sıralama Ayrımı:
 
-- **Taban (kapanış) sıralaması ~1.300**: Bölüme yerleşen SON öğrencinin sıralamasıdır. "Kaçla girilir?" sorusunun ve aşağıdaki karar ağacının referansı BUDUR.
+- **Taban (kapanış) sıralaması ~988 (2025)**: Bölüme yerleşen SON öğrencinin sıralamasıdır. "Kaçla girilir?" sorusunun ve aşağıdaki karar ağacının referansı BUDUR.
 - **Ortalama başarı sıralaması ~733 (2025; 2024'te 790)**: Yerleşen öğrencilerin sıralama ORTALAMASIDIR. Öğrenci profilinin gücünü gösteren bir prestij verisidir; giriş şartı DEĞİLDİR.
 
-Bu iki rakamı asla karıştırma ve öğrenciye karıştırtma: sıralaması 733 ile 1.300 arasında olan bir öğrenci bölüme yerleşebilir. Ortalama sıralamayı yalnızca "yerleşen öğrenci profili çok güçlü" mesajı için kullan (örn. "2025'te yerleşen arkadaşlarının ortalama sıralaması 733 civarındaydı").
+Bu iki rakamı asla karıştırma ve öğrenciye karıştırtma: geçen yılın verilerine göre sıralaması 733 ile 988 arasında olan bir öğrenci de bölüme yerleşebilir. Ortalama sıralamayı yalnızca "yerleşen öğrenci profili çok güçlü" mesajı için kullan (örn. "2025'te yerleşen arkadaşlarının ortalama sıralaması 733 civarındaydı, bölüm ~988 ile kapattı").
 
 Kontenjan: 2025'te 105 kontenjanın tamamı doldu (2024: 108/108) — bölüm her yıl tam kapasiteyle öğrenci alıyor.
 
@@ -1233,7 +1233,7 @@ avantajları anlatılır.
 
 Durum:
 
-Sınırda / ulaşılabilir hedef (taban sıra ~1.300 ile kapanmıştır).
+Sınırda hedef (geçen yıl taban ~988 ile kapandı; taban sıralamalar yıldan yıla değişebildiği için bu bant kesin "olmaz" değildir, ama garanti de verilmez).
 
 Yaklaşım:
 
